@@ -168,4 +168,5 @@ const insight = await geminiService.generateHealthInsight(entries, vitals, goals
 - Integration with electronic health records (EHR)
 - PWA support for mobile app-like experience
 
+<img width="1906" height="920" alt="image" src="https://github.com/user-attachments/assets/0d9f7a4a-2f8e-470d-a478-a6135ca79d6a" />
 
