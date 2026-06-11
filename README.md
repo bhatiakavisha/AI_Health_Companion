@@ -170,3 +170,4 @@ const insight = await geminiService.generateHealthInsight(entries, vitals, goals
 
 <img width="1906" height="920" alt="image" src="https://github.com/user-attachments/assets/0d9f7a4a-2f8e-470d-a478-a6135ca79d6a" />
 
+<img width="1903" height="910" alt="image" src="https://github.com/user-attachments/assets/3c147a79-0e57-41a1-8b4b-073cd63d7186" />
