@@ -5,7 +5,7 @@ import { Lightbulb, RefreshCw, Loader2, Info, AlertTriangle, AlertCircle, Sparkl
 import { format } from 'date-fns';
 
 export default function Insights() {
-  const { insights, addInsight, setLoading, setError, isLoading, getRecentEntries, getRecentVitals, getActiveGoals } = useHealthStore();
+  const { insights, addInsight, setLoading, setError, isLoading, error, getRecentEntries, getRecentVitals, getActiveGoals } = useHealthStore();
   const [generating, setGenerating] = useState(false);
 
   const handleGenerate = async () => {
@@ -20,8 +20,8 @@ export default function Insights() {
       
       const insight = await geminiService.generateHealthInsight(recentEntries, recentVitals, activeGoals);
       addInsight(insight);
-    } catch (error: any) {
-      setError(error.message);
+    } catch (error: unknown) {
+      setError(error instanceof Error ? error.message : 'Unable to generate an insight. Please try again.');
     } finally {
       setGenerating(false);
       setLoading(false);
@@ -80,6 +80,18 @@ export default function Insights() {
             </>
           )}
         </button>
+      </div>
+
+      {error && (
+        <div role="alert" className="flex items-start space-x-3 rounded-xl border border-red-200 bg-red-50 p-4 text-red-800">
+          <AlertCircle className="mt-0.5 h-5 w-5 flex-shrink-0" />
+          <p>{error}</p>
+        </div>
+      )}
+
+      <div className="flex items-start space-x-3 rounded-xl border border-blue-200 bg-blue-50 p-4 text-sm text-blue-800">
+        <Info className="mt-0.5 h-5 w-5 flex-shrink-0" />
+        <p>AI-generated insights are general information, not a medical diagnosis or a substitute for professional medical advice.</p>
       </div>
 
       {/* Insights List */}

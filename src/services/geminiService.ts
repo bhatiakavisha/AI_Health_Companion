@@ -1,36 +1,58 @@
 import axios from 'axios';
-import { getApiUrl } from '../config/api';
+import { GENERATE_CONTENT_API_URL } from '../config/api';
 import type { HealthEntry, VitalSign, HealthGoal, HealthInsight } from '../types/health';
+
+interface ApiErrorResponse {
+  error?: {
+    message?: unknown;
+  };
+}
+
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === 'object' && value !== null && !Array.isArray(value);
 
 export class GeminiService {
   async generateContent(prompt: string): Promise<string> {
+    const normalizedPrompt = prompt.trim();
+    if (!normalizedPrompt) {
+      throw new Error('A prompt is required to generate content.');
+    }
+    if (normalizedPrompt.length > 20_000) {
+      throw new Error('The prompt is too long. Please shorten it and try again.');
+    }
+
+    let response;
     try {
-      const response = await axios.post(
-        getApiUrl(),
+      response = await axios.post<unknown>(
+        GENERATE_CONTENT_API_URL,
+        { prompt: normalizedPrompt },
         {
-          contents: [
-            {
-              parts: [{ text: prompt }]
-            }
-          ],
-          generationConfig: {
-            temperature: 0.7,
-            topK: 40,
-            topP: 0.95,
-            maxOutputTokens: 2048,
-          }
-        },
-        {
-          headers: {
-            'Content-Type': 'application/json',
-          },
+          headers: { 'Content-Type': 'application/json' },
+          timeout: 25_000,
         }
       );
-
-      return response.data.candidates[0].content.parts[0].text || '';
-    } catch (error: any) {
-      throw new Error(`Failed to generate content: ${error.message}`);
+    } catch (error: unknown) {
+      if (axios.isAxiosError<ApiErrorResponse>(error)) {
+        const apiMessage = error.response?.data?.error?.message;
+        if (typeof apiMessage === 'string' && apiMessage.trim()) {
+          throw new Error(apiMessage);
+        }
+        if (error.code === 'ECONNABORTED' || error.code === 'ETIMEDOUT') {
+          throw new Error('The AI service took too long to respond. Please try again.');
+        }
+        if (!error.response) {
+          throw new Error('Could not connect to the AI service. Please try again later.');
+        }
+        throw new Error('The AI service is temporarily unavailable. Please try again later.');
+      }
+      throw new Error('Unable to generate content. Please try again.');
     }
+
+    if (!isRecord(response.data) || typeof response.data.text !== 'string' || !response.data.text.trim()) {
+      throw new Error('The AI service returned an empty or invalid response. Please try again.');
+    }
+
+    return response.data.text;
   }
 
   async analyzeSymptoms(symptoms: HealthEntry[], vitals: VitalSign[]): Promise<string> {
@@ -83,6 +105,7 @@ Generate a health insight that:
 2. Provides actionable recommendations
 3. Explains health information in simple terms
 4. Encourages healthy behaviors
+5. Makes clear that this is general information, not a medical diagnosis
 
 Format as JSON:
 {
@@ -95,47 +118,58 @@ Format as JSON:
 
 Return ONLY valid JSON.`;
 
-    try {
-      const response = await this.generateContent(prompt);
-      let cleanedResponse = response.trim();
-      
-      if (cleanedResponse.startsWith('```json')) {
-        cleanedResponse = cleanedResponse.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
-      } else if (cleanedResponse.startsWith('```')) {
-        cleanedResponse = cleanedResponse.replace(/```\n?/g, '').trim();
-      }
+    const response = await this.generateContent(prompt);
+    const cleanedResponse = response
+      .replace(/^```(?:json)?\s*/i, '')
+      .replace(/\s*```$/, '')
+      .trim();
 
-      const jsonData = JSON.parse(cleanedResponse);
-      
-      return {
-        id: `insight_${Date.now()}`,
-        generatedAt: new Date().toISOString(),
-        type: 'trend',
-        title: jsonData.title || 'Health Insight',
-        description: jsonData.description || '',
-        explanation: jsonData.explanation,
-        severity: jsonData.severity || 'info',
-        recommendations: jsonData.recommendations || [],
-      };
-    } catch (e) {
-      // Fallback insight
-      return {
-        id: `insight_${Date.now()}`,
-        generatedAt: new Date().toISOString(),
-        type: 'trend',
-        title: 'Keep Tracking Your Health',
-        description: 'Continue logging your symptoms and vitals for better insights.',
-        severity: 'info',
-      };
+    let jsonData: unknown;
+    try {
+      jsonData = JSON.parse(cleanedResponse);
+    } catch {
+      throw new Error('The AI returned an invalid health insight. Please try again.');
     }
+
+    if (
+      !isRecord(jsonData) ||
+      typeof jsonData.title !== 'string' ||
+      !jsonData.title.trim() ||
+      typeof jsonData.description !== 'string' ||
+      !jsonData.description.trim()
+    ) {
+      throw new Error('The AI returned an incomplete health insight. Please try again.');
+    }
+
+    const severity: HealthInsight['severity'] =
+      jsonData.severity === 'warning' || jsonData.severity === 'urgent' || jsonData.severity === 'info'
+        ? jsonData.severity
+        : 'info';
+    const recommendations = Array.isArray(jsonData.recommendations)
+      ? jsonData.recommendations.filter((recommendation): recommendation is string => typeof recommendation === 'string')
+      : [];
+
+    return {
+      id: `insight_${Date.now()}`,
+      generatedAt: new Date().toISOString(),
+      type: 'trend',
+      title: jsonData.title,
+      description: jsonData.description,
+      explanation: typeof jsonData.explanation === 'string' ? jsonData.explanation : undefined,
+      severity,
+      recommendations,
+    };
   }
 
   async explainHealthTerm(term: string): Promise<string> {
     const prompt = `Explain the medical/health term "${term}" in simple, easy-to-understand language.
 Keep it concise (2-3 sentences) and avoid overly technical jargon.
 Focus on what it means for general health and wellness.`;
+    const safePrompt = `${prompt}
 
-    return await this.generateContent(prompt);
+This is general health information, not a medical diagnosis. Encourage consulting a qualified healthcare professional for personal medical concerns.`;
+
+    return await this.generateContent(safePrompt);
   }
 
   async getHealthAnswer(
@@ -181,7 +215,7 @@ Provide a step-by-step plan with:
 3. Tips for staying motivated
 4. Ways to track progress
 
-Format it as a clear, structured plan that's easy to follow.`;
+Format it as a clear, structured plan that's easy to follow. This is general information, not a medical diagnosis; advise the user to consult a healthcare professional before making medical changes.`;
 
     return await this.generateContent(prompt);
   }

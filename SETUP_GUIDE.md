@@ -9,27 +9,29 @@ If you haven't already, install Node.js:
 - Verify installation: `node --version` and `npm --version`
 
 ### Step 2: Get Gemini API Key
-1. Visit [Google AI Studio](https://makersuite.google.com/app/apikey)
+1. Visit [Google AI Studio](https://aistudio.google.com/app/apikey)
 2. Sign in with your Google account
 3. Click "Create API Key"
 4. Copy your API key
 
-### Step 3: Configure API Key
+### Step 3: Configure the server-side API key
 
-**Option 1: Direct Configuration (Quick)**
-Open `src/config/api.ts` and replace `YOUR_GEMINI_API_KEY_HERE` with your actual API key:
+The Gemini key must be named `GEMINI_API_KEY`. Never add it to a `VITE_` variable or frontend source code; Vite variables are public in browser bundles.
 
-```typescript
-export const GEMINI_API_KEY = 'your_actual_api_key_here';
+For local development, create `.env.local` in the project root (or copy `.env.example`) and set:
+
+```
+GEMINI_API_KEY=your_gemini_api_key
 ```
 
-**Option 2: Environment Variable (Recommended for Production)**
-Create a `.env` file in the root directory:
-```
-VITE_GEMINI_API_KEY=your_actual_api_key_here
-```
+`.env.local` is ignored by Git. Alternatively, sign in and link the Vercel project, then pull its Development environment:
 
-**Important**: For production, use environment variables. Never commit API keys to version control.
+```bash
+npx vercel login
+npx vercel link
+npx vercel env add GEMINI_API_KEY development
+npx vercel env pull .env.local
+```
 
 ### Step 4: Install Dependencies
 Run the following command in the project root:
@@ -44,24 +46,24 @@ or
 yarn install
 ```
 
-### Step 5: Run the Development Server
-```bash
-npm run dev
-```
-
-or
+### Step 5: Run the app and API locally
 
 ```bash
-yarn dev
+npx vercel dev
 ```
+
+Use the local URL printed by Vercel CLI (usually `http://localhost:3000`). `npm run dev` starts Vite only and does not run the `/api` function.
+
+In Vercel, add `GEMINI_API_KEY` under **Project Settings → Environment Variables** for the Development, Preview, and Production environments you use. Redeploy after changing a deployed value. Do not create a `VITE_GEMINI_API_KEY`.
 
 ### Step 6: Open in Browser
-- The app will automatically open at `http://localhost:5173`
-- Or manually navigate to the URL shown in the terminal
+- Navigate to the local URL shown by Vercel CLI (usually `http://localhost:3000`).
 
 ## Project Structure
 
 ```
+api/
+└── generate-content.ts     # Secure Vercel function for Gemini requests
 src/
 ├── main.tsx                 # App entry point
 ├── App.tsx                  # Main app component with routing
@@ -122,16 +124,17 @@ src/
 
 - `npm run dev` - Start development server
 - `npm run build` - Build for production
-- `npm run preview` - Preview production build
+- `npm run preview` - Preview the static Vite build (does not run `/api`)
+- `npx vercel dev` - Run the frontend together with the Vercel API function
 - `npm run lint` - Run ESLint
 
 ## Troubleshooting
 
 ### API Key Issues
-- Ensure your API key is correctly set in `src/config/api.ts` or `.env`
+- Ensure `GEMINI_API_KEY` is set in `.env.local` or in the Vercel project's environment variables
 - Check that your API key has proper permissions
 - Verify you're not exceeding API rate limits
-- Check browser console for detailed error messages
+- Never set the key in frontend code or in a `VITE_` variable
 
 ### Build Issues
 - Run `npm install` again to ensure all dependencies are installed
@@ -142,18 +145,16 @@ src/
 ### Runtime Errors
 - Check browser console (F12) for detailed error messages
 - Verify internet connection for API calls
-- Ensure API key is properly configured
+- Run the app with `npx vercel dev` so the serverless API function is available
 - Check network tab for API request/response details
 
 ### Port Already in Use
-If port 5173 is already in use:
-- The dev server will automatically use the next available port
-- Or specify a port: `npm run dev -- --port 3000`
+If the Vercel development port is already in use, follow the port shown by Vercel CLI or stop the other local server.
 
 ## Health Data Privacy
 
 - All health data is stored locally in your browser's localStorage
-- No data is sent to external servers (except Gemini API for AI features)
+- AI features send the relevant prompt and health context to the app's `/api/generate-content` function, which forwards it to Google Gemini
 - You have full control over your health information
 - Data persists across browser sessions
 
@@ -170,18 +171,8 @@ If port 5173 is already in use:
    ```
 
 3. **Deploy**
-   - The `dist` folder contains the production build
-   - Deploy to any static hosting service (Vercel, Netlify, GitHub Pages, etc.)
-
-## Environment Variables
-
-Create a `.env` file for environment-specific configuration:
-
-```
-VITE_GEMINI_API_KEY=your_api_key_here
-```
-
-Note: Variables must be prefixed with `VITE_` to be accessible in the app.
+   - Deploy the project to Vercel so the `/api` serverless function is deployed with the Vite frontend
+   - Configure `GEMINI_API_KEY` in the Vercel project's Development, Preview, and Production environments as needed
 
 ## Next Steps
 

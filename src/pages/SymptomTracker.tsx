@@ -5,7 +5,7 @@ import { Heart, AlertCircle, Loader2, Plus, Sparkles, X } from 'lucide-react';
 import { format } from 'date-fns';
 
 export default function SymptomTracker() {
-  const { entries, addEntry, setError } = useHealthStore();
+  const { entries, addEntry, setError, error } = useHealthStore();
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [severity, setSeverity] = useState<'mild' | 'moderate' | 'severe'>('mild');
@@ -43,8 +43,8 @@ export default function SymptomTracker() {
       const recentVitals = useHealthStore.getState().getRecentVitals(7);
       const analysis = await geminiService.analyzeSymptoms(recentSymptoms, recentVitals);
       setAnalysisResult(analysis);
-    } catch (error: any) {
-      setError(error.message);
+    } catch (error: unknown) {
+      setError(error instanceof Error ? error.message : 'Unable to analyze symptoms. Please try again.');
     } finally {
       setAnalyzing(false);
     }
@@ -92,6 +92,13 @@ export default function SymptomTracker() {
           </button>
         )}
       </div>
+
+      {error && (
+        <div role="alert" className="flex items-start space-x-3 rounded-xl border border-red-200 bg-red-50 p-4 text-red-800">
+          <AlertCircle className="mt-0.5 h-5 w-5 flex-shrink-0" />
+          <p>{error}</p>
+        </div>
+      )}
 
       {/* Add Symptom Form */}
       {showForm ? (
@@ -188,6 +195,9 @@ export default function SymptomTracker() {
             </div>
             <h3 className="text-xl font-bold text-blue-900">AI Analysis</h3>
           </div>
+          <p className="mb-4 text-sm text-blue-800">
+            This AI-generated information is not a medical diagnosis or a substitute for professional medical advice.
+          </p>
           <div className="prose max-w-none text-gray-700 whitespace-pre-wrap leading-relaxed bg-white/60 p-4 rounded-xl">
             {analysisResult}
           </div>

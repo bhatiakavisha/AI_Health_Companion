@@ -43,12 +43,12 @@ export default function AICoach() {
       
       const assistantMessage: Message = { type: 'assistant', text: answer };
       setMessages((prev) => [...prev, assistantMessage]);
-    } catch (error: any) {
-      console.error("Gemini Error:", error);
-      setError(error.message);
+    } catch (error: unknown) {
+      console.error('Gemini request failed.');
+      setError(error instanceof Error ? error.message : 'Unable to generate a response. Please try again.');
       const errorMessage: Message = {
         type: 'assistant',
-        text: 'Sorry, I encountered an error. Please try again or check your API key configuration.',
+        text: 'Sorry, I could not generate a response right now. Please try again shortly.',
       };
       setMessages((prev) => [...prev, errorMessage]);
     } finally {

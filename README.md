@@ -55,27 +55,18 @@ Installation
    yarn install
    ```
 
-3. **Configure API Key**
-   - Get your Gemini API key from [Google AI Studio](https://makersuite.google.com/app/apikey)
-   - Open `src/config/api.ts`
-   - Replace `YOUR_GEMINI_API_KEY_HERE` with your actual API key:
-     ```typescript
-     export const GEMINI_API_KEY = 'your_actual_api_key_here';
-     ```
-   - **OR** create a `.env` file in the root directory:
-     ```
-     VITE_GEMINI_API_KEY=your_actual_api_key_here
-     ```
+3. **Configure Gemini securely**
+   - Create a Gemini API key in [Google AI Studio](https://aistudio.google.com/app/apikey).
+   - Store it as `GEMINI_API_KEY` in Vercel or in a local `.env.local` file. Do not use a `VITE_` variable: Vite variables are public in browser bundles.
+   - For local AI features, run the app with Vercel CLI (`npx vercel dev`) so the `/api/generate-content` function is available.
 
 4. Run the development server
    ```bash
-   npm run dev
-   # or
-   yarn dev
+   npx vercel dev
    ```
 
 5. Open your browser
-   - Navigate to `http://localhost:5173` (or the port shown in terminal)
+   - Navigate to the local URL shown by Vercel CLI (usually `http://localhost:3000`).
 
 6. Build for production
    ```bash
@@ -87,6 +78,8 @@ Installation
 📱 Project Structure
 
 ```
+api/
+└── generate-content.ts     # Server-side Gemini proxy for Vercel
 src/
 ├── main.tsx                 # App entry point
 ├── App.tsx                  # Main app component with routing
@@ -113,7 +106,7 @@ src/
 
 🔌 API Integration
 
-The app uses Gemini API for:
+The browser sends prompts to the same-origin `/api/generate-content` endpoint. That Vercel serverless function calls Gemini using the server-only `GEMINI_API_KEY`; the key is never included in the frontend bundle. The app uses Gemini API for:
 - **Symptom Analysis**: Analyzes logged symptoms and provides contextual information
 - **Health Insights**: Generates personalized insights based on health data patterns
 - **Health Explanations**: Explains medical terms and concepts in simple language
@@ -150,10 +143,10 @@ const insight = await geminiService.generateHealthInsight(entries, vitals, goals
 
 🔒 Privacy & Safety
 
-- **Local Storage**: All health data stored locally in browser localStorage
+- **Local Storage**: Health data is stored locally in browser localStorage
+- **AI Requests**: Prompts and relevant health context are sent to the app's serverless function and then to Google Gemini to generate AI responses
 - **No Medical Diagnosis**: App provides information only, not medical advice
 - **Professional Consultation**: Always encourages consulting healthcare professionals
-- **Safety Settings**: Gemini API configured with medical safety thresholds
 
 🚀 Future Enhancements
 
